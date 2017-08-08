@@ -10,10 +10,26 @@
 	<meta name="subject">Millimiter/submillimiter Astronomy</meta>
 	<meta name="facility">ALMA OSF</meta>
 
-	<table id="alma_fits" onDisk="True" adql="True">	
+	<table id="alma_fits" onDisk="True" adql="True" >	
 
+		<!--FORM SCP-->
 		<mixin>
 			//scs#q3cindex
+		</mixin>
+
+		<!--FORM SIAP-->
+		<mixin
+			calibLevel="3"
+			collectionName="'ALMA FITS'"
+			dec="s_dec"
+			ra="s_ra"
+			oUCD="'phot.flux.density.sb'"
+			facilityName="'ALMA'"
+			instrumentName="'ALMA'"	>
+			//obscore#publishSIAP
+		</mixin>
+		<mixin>
+			//siap#pgs
 		</mixin>
 
 		<!--DESCRIPTION-->
@@ -154,13 +170,25 @@
 		</column>
 
 
+
 	</table>
 
 
 <data id="import_content">
-  	<sources items="0"/>
+
+	<!-- This is very IMPORTANT !!!, because is the path with the scripts -->
+  	<sources items="/var/gavo/inputs/alma_fits"/>
+
   	<!-- We use the external python script stored in the q.rd base directory. -->
-  	<customGrammar module="metadatain"/>
+	<customGrammar module="metadatain">
+			<rowfilter procDef="__system__/products#define">
+				<bind key="table">"alma_fits"</bind>
+				<bind key="fsize">@filesize</bind>
+				<bind key="path">@access_url</bind>
+				<bind key="mime">"image/fits"</bind>
+				<bind key="accref">"\schema/"+@name_file</bind>
+			</rowfilter>
+	</customGrammar>
 
   	<make table="alma_fits">	
 			<rowmaker id="build_obscore" idmaps="*">
@@ -183,22 +211,78 @@
 				<map dest="latpole">float(@latpole)</map>
 				<map dest="instrument_name">@instrument_name</map>
 				<map dest="access_url">@access_url</map>
+
+				<apply name="fakeWCS">
+	    			<code>
+					result["centerAlpha"],result["centerDelta"] = float(@s_ra), float(@s_dec)
+					result["nAxes"] = float(@naxis)
+					result["pixelSize"] = [float(v) for v in @naxisn.split(';')]
+
+					result["pixelScale"] = 0.5
+					result["wcs_projection"] = None
+
+					result["wcs_refPixel"] = [float(v) for v in @crpixn.split(';')]
+					result["wcs_refValues"] = [float(v) for v in @crvaln.split(';')]
+					result["wcs_cdmatrix"] = [float(v) for v in  @cdeltn.split(';')]
+
+					result["wcs_equinox"] = 2000
+					result["prodtblAccref"] = None
+					
+					wcsTestDict = {
+						"CRVAL1": 0,   "CRVAL2": 0, "CRPIX1": 50,  "CRPIX2": 50,
+						"CD1_1": 0.01, "CD1_2": 0, "CD2_1": 0,    "CD2_2": 0.01,
+						"NAXIS1": 100, "NAXIS2": 100, "CUNIT1": "deg", "CUNIT2": "deg",
+						"CTYPE1": 'RA---TAN-SIP', "CTYPE2": 'DEC--TAN-SIP', "LONPOLE": 180.,
+					}
+					result["coverage"] = coords.getSpolyFromWCSFields(wcsTestDict)
+	    			</code>
+  				</apply>
+  				
+
 			</rowmaker>
 		</make>
+
+	<!--TAP Services-->
+    <register services="__system__/tap#run"/>
 </data>
 
-	<!--Servicio, Publicación-->
+	<!--Service Publication-->
+	<!--SIAP-->
+	<service id="siap-alma-fits" allowed="form,siap.xml">
+	    <meta name="shortName">SIAP ALMA FITS</meta>
+	    <meta name="title">Sample Image Access for ALMA FITS</meta>
+	  	<meta name="sia.type">pointed</meta>
+		<meta name="testQuery.pos.ra">0.8</meta>
+		<meta name="testQuery.size.ra">0.8</meta>
+
+		<dbCore queriedTable="alma_fits">
+		  <condDesc original="//siap#protoInput"/>
+		  <condDesc original="//siap#humanInput"/>
+		</dbCore>
+
+		<outputTable autoCols="target_name,file_name,s_ra, s_dec,mous,naxis,naxisn,obsgeo_x,obsgeo_y,obsgeo_z,access_url"/>
+
+		<publish render="siap.xml" sets="local,ivo_managed"/>
+ 		<publish render="form" sets="local"/>
+ 	</service>
+
+ 	<!--SCS-->
 	<service id="scs-alma-fits" allowed="form,scs.xml">
-  		<meta name="shortName">SCS ALMA ARCHIVE</meta>
+  		<meta name="shortName">SCS ALMA FITS</meta>
         <meta name="title">Simple Cone Search for ALMA FITS</meta>
     	<meta name="testQuery.ra">0.01</meta>
 		<meta name="testQuery.dec">0.01</meta>
+
 		<dbCore queriedTable="alma_fits">
 			<condDesc original="//scs#humanInput"/>
 			<condDesc original="//scs#protoInput"/>
     	</dbCore>
+
+    	<outputTable autoCols="target_name,file_name,s_ra, s_dec,mous,naxis,naxisn,obsgeo_x,obsgeo_y,obsgeo_z,access_url"/>
     	
     	<publish render="scs.xml" sets="local,ivo_managed"/>
     	<publish render="form" sets="local"/>
 	</service>
+
+
 </resource>
