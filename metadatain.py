@@ -55,7 +55,7 @@ class RowIterator(CustomRowIterator):
 		cursor = conn.cursor()
 		cursor.execute(query)
 		rows = cursor.fetchall()
-		url="http://vo.chivo.cl:9000/confirm?mous=%s"
+		url="http://vo.chivo.cl:9000/confirm?name=%s"
 
 		for result in rows:
 			s_ra,s_dec,specsys,restfrq,radesys,name_file,target_name,gous,mous,naxis,naxisn,facility_name,instrument_name,obsgeo_x,obsgeo_y,obsgeo_z,lonpole,latpole,date_obs =result
@@ -79,6 +79,6 @@ class RowIterator(CustomRowIterator):
 			'lonpole':lonpole,
 			'latpole':latpole,
 			'date_obs':date_obs,
-			'access_url':url%(mous),
+			'access_url':url%(name_file),
 			}
 			yield rec
